@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - Sassy Sentinel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .glass { background: rgba(11, 15, 26, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .input-glow:focus { box-shadow: 0 0 15px rgba(37, 99, 235, 0.2); border-color: #2563eb; }
+        .toast { transform: translateY(-100%); transition: all 0.4s ease-out; }
+        .toast.show { transform: translateY(20px); }
+        #robot-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+        .bot-drone { position: absolute; width: 40px; height: 40px; background: radial-gradient(circle, #2563eb 20%, transparent 70%); border: 2px solid rgba(37, 99, 235, 0.5); border-radius: 50%; box-shadow: 0 0 20px rgba(37, 99, 235, 0.4); transition: transform 0.1s ease-out; }
+    </style>
+</head>
+<body class="bg-[#05070a] flex items-center justify-center h-screen text-slate-200 font-sans overflow-hidden">
+    
+    <div id="toast-container" class="fixed top-0 left-0 right-0 flex flex-col items-center gap-3 z-50 pointer-events-none">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="toast show flex items-center gap-3 px-6 py-4 glass rounded-2xl shadow-2xl border-l-4 {{ 'border-red-500' if category == 'error' else 'border-emerald-500' }} pointer-events-auto mt-4">
+                    <span class="text-xs font-bold uppercase text-white">{{ message }}</span>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="w-full max-w-md p-10 glass rounded-[2.5rem] shadow-2xl relative z-10">
+        <div class="flex flex-col items-center mb-8">
+            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white text-3xl italic mb-4 shadow-xl">S</div>
+            <h1 class="text-3xl font-black bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent tracking-tighter">Sentinel Login</h1>
+            <p class="text-slate-500 text-xs uppercase font-black tracking-widest mt-2">Observers are tracking your session</p>
+        </div>
+
+        <form method="POST" action="/login" class="space-y-6">
+            <input type="text" name="username" required placeholder="User Identifier" class="w-full bg-[#05070a] border border-slate-800 p-4 rounded-2xl text-white outline-none input-glow transition-all shadow-inner">
+            <input type="password" name="password" required placeholder="Passkey" class="w-full bg-[#05070a] border border-slate-800 p-4 rounded-2xl text-white outline-none input-glow transition-all shadow-inner">
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl active:scale-95 transition-all text-white">Verify Identity</button>
+        </form>
+        <p class="text-center mt-8 text-[10px] text-slate-500 font-black uppercase tracking-widest">New? <a href="/signup" class="text-blue-400 font-bold hover:text-blue-300">Initialize Identity</a></p>
+    </div>
+
+    <script>
+        function initRobots() {
+            const layer = document.createElement('div'); layer.id = 'robot-layer'; document.body.prepend(layer);
+            const drones = [];
+            for (let i = 0; i < 2; i++) {
+                const drone = document.createElement('div'); drone.className = 'bot-drone'; layer.appendChild(drone);
+                drones.push({ el: drone, x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, targetX: 0, targetY: 0, speed: 0.04 + (Math.random() * 0.04) });
+            }
+            document.addEventListener('mousemove', (e) => { drones.forEach(d => { d.targetX = e.clientX; d.targetY = e.clientY; }); });
+            function animate() {
+                drones.forEach((d, i) => {
+                    d.x += (d.targetX - d.x) * d.speed; d.y += (d.targetY - d.y) * d.speed;
+                    d.el.style.transform = `translate(${d.x + Math.sin(Date.now() / 600 + i)*20}px, ${d.y + Math.cos(Date.now() / 600 + i)*20}px)`;
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+        window.onload = () => { initRobots(); setTimeout(() => { document.querySelectorAll('.toast').forEach(t => t.classList.remove('show')); }, 4000); };
+    </script>
+</body>
+</html>

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SassySnippet - Master Ultra V29</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        .hidden-view { display: none !important; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #2563eb; border-radius: 10px; }
+        .glass { background: rgba(11, 15, 26, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .toast { transform: translateY(-100%); transition: all 0.4s ease-out; }
+        .toast.show { transform: translateY(20px); }
+
+        /* ROBOTIC CSS */
+        #robot-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+        .bot-drone { 
+            position: absolute; width: 45px; height: 45px; 
+            background: radial-gradient(circle, #2563eb 20%, transparent 70%); 
+            border: 2px solid rgba(37, 99, 235, 0.5); border-radius: 50%; 
+            box-shadow: 0 0 25px rgba(37, 99, 235, 0.4); 
+            transition: transform 0.1s ease-out, border-color 0.3s, box-shadow 0.3s;
+        }
+        .bot-drone::after { content: ''; position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; background: #fff; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 12px #fff; }
+        .scan-pulse { animation: pulse-ring 1s cubic-bezier(0.215, 0.61, 0.355, 1) forwards; }
+        @keyframes pulse-ring { 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.8; } 100% { transform: translate(-50%, -50%) scale(4); opacity: 0; } }
+    </style>
+</head>
+<body class="bg-[#05070a] text-slate-200 flex h-screen font-sans overflow-hidden">
+
+    <div id="toast-container" class="fixed top-0 left-0 right-0 flex flex-col items-center gap-3 z-50 pointer-events-none">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="toast show flex items-center gap-3 px-6 py-4 glass rounded-2xl shadow-2xl border-l-4 {{ 'border-red-500' if category == 'error' else 'border-emerald-500' }} pointer-events-auto mt-4">
+                    <span class="text-xs font-bold uppercase text-white">{{ message }}</span>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <aside class="w-72 bg-[#0b0f1a] border-r border-slate-800 flex flex-col p-6 shadow-2xl z-20 relative">
+        <div class="flex items-center space-x-3 mb-10">
+            <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center font-black italic shadow-lg shadow-blue-900/40">S</div>
+            <h1 class="text-2xl font-black bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">SassySnippet</h1>
+        </div>
+        <nav class="space-y-4 flex-1">
+            <button onclick="show('editor')" id="nav-editor" class="w-full text-left px-5 py-4 rounded-2xl bg-blue-600 text-white font-bold text-sm transition-all shadow-xl">📝 Editor</button>
+            <button onclick="show('library')" id="nav-library" class="w-full text-left px-5 py-4 rounded-2xl hover:bg-slate-800 text-slate-400 font-bold text-sm transition-all">📚 Library</button>
+            <button onclick="show('trash')" id="nav-trash" class="w-full text-left px-5 py-4 rounded-2xl hover:bg-red-900/10 text-red-500 font-bold text-sm transition-all">🗑️ Trash ({{trash|length}})</button>
+        </nav>
+        <div class="pt-6 border-t border-slate-800">
+            <div class="p-4 glass rounded-2xl mb-4 text-center"><p class="text-[10px] font-black text-blue-500 uppercase tracking-widest">{{ user }}</p></div>
+            <a href="/logout" class="block w-full text-center py-4 bg-red-600/10 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-lg">Logout Session</a>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col overflow-hidden relative z-10">
+        <section id="view-editor" class="h-full flex flex-col">
+            <div class="px-10 py-4 bg-[#0b0f1a]/50 border-b border-slate-800/50">
+                <form action="/add" method="POST" class="flex items-center gap-4">
+                    <input type="text" name="title" placeholder="New Filename..." class="flex-1 bg-transparent border-b border-slate-800 text-sm py-2 outline-none focus:border-blue-500 text-white" required>
+                    <select name="language" class="bg-transparent text-sm cursor-pointer outline-none text-slate-400">
+                        <option value="python">🐍 Python</option>
+                        <option value="javascript">🌐 JavaScript</option>
+                        <option value="html">📄 HTML</option>
+                        <option value="cpp">⚙️ C++</option>
+                        <option value="java">☕ Java</option>
+                        <option value="rust">🦀 Rust</option>
+                        <option value="sql">🗄️ SQL</option>
+                    </select>
+                    <button type="submit" class="bg-blue-600 px-8 py-2 rounded-xl font-black text-xs shadow-lg">+</button>
+                </form>
+            </div>
+
+            <form id="editorForm" action="/update/{{ snippets[0].id if snippets else 0 }}" method="POST" class="flex-1 flex flex-col">
+                <div id="capture-area" class="flex-1 flex flex-col bg-[#05070a]/80 glass m-4 rounded-[2rem] overflow-hidden">
+                    <div class="px-10 py-6 bg-[#0b0f1a]/50 border-b border-slate-800 flex justify-between items-center">
+                        <div class="flex items-center space-x-6 flex-1 min-w-0">
+                            <input type="text" id="editTitle" readonly value="{{ snippets[0].title if snippets else 'Select a file' }}" class="bg-transparent text-2xl font-black text-white outline-none w-1/3">
+                            <input type="text" name="tags" id="editTags" value="{{ snippets[0].tags if snippets else '' }}" placeholder="#tags" class="bg-transparent text-xs text-blue-400 outline-none w-1/2">
+                        </div>
+                        <div class="flex space-x-3">
+                            <button type="button" onclick="takeSnapshot()" class="bg-indigo-600 p-3 rounded-xl shadow-lg hover:bg-indigo-500">🖼️ PNG</button>
+                            <button type="submit" class="bg-emerald-600 px-10 py-3 rounded-2xl font-black uppercase text-[10px] shadow-xl">Save changes</button>
+                        </div>
+                    </div>
+                    <textarea name="code" id="editCode" oninput="syncUpdate()" class="flex-1 bg-transparent p-12 font-mono text-sm leading-relaxed text-blue-300 outline-none resize-none" spellcheck="false">{{ snippets[0].code if snippets else '' }}</textarea>
+                </div>
+                <div class="px-10 py-2 text-[10px] text-slate-500 flex justify-between uppercase font-black tracking-widest">
+                    <div id="stat-counter">Chars: 0 | Lines: 1</div>
+                    <div class="text-emerald-500">● Live Sync Engine V29</div>
+                </div>
+            </form>
+        </section>
+
+        <section id="view-library" class="hidden-view h-full overflow-y-auto p-12">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+                <h2 class="text-4xl font-black tracking-tighter">My Library</h2>
+                <input type="text" id="libSearch" onkeyup="searchLibrary()" placeholder="🔍 Search title, code, or tags..." 
+                       class="w-full max-sm bg-[#0b0f1a] border border-slate-800 p-4 rounded-2xl text-white outline-none focus:border-blue-600 shadow-inner">
+            </div>
+            
+            <div id="snippetGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {% for s in snippets %}
+                <div class="snippet-card bg-[#0b0f1a]/80 glass border border-slate-800 rounded-[2.5rem] p-8 hover:border-blue-500 transition-all group">
+                    <div class="flex justify-between items-start mb-1">
+                        <h4 class="text-xl font-bold text-white truncate">{{s.title}}</h4>
+                        <button onclick="copySnippet('preview-{{s.id}}')" class="text-[9px] font-black text-blue-500 uppercase tracking-widest hover:text-white transition-colors">Copy</button>
+                    </div>
+                    <p class="text-[10px] text-blue-500 font-black uppercase tracking-widest mb-6">{{s.language}} • {{s.tags}}</p>
+                    <div class="bg-[#05070a] border border-slate-800 rounded-2xl p-4 h-28 overflow-hidden mb-6 opacity-40 group-hover:opacity-100 transition-all">
+                        <pre><code id="preview-{{s.id}}" class="text-[10px] text-slate-400 font-mono leading-tight">{{s.code}}</code></pre>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="loadEditor('{{s.id}}','{{s.title}}','{{s.tags}}',`{{s.code}}`)" class="flex-1 bg-blue-600 text-[10px] font-black py-4 rounded-xl uppercase active:scale-95 transition-all">Open</button>
+                        <form action="/soft_delete/{{s.id}}" method="POST">
+                            <button type="submit" class="bg-red-600/10 text-red-500 px-5 py-4 rounded-xl hover:bg-red-600 hover:text-white">🗑️</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section id="view-trash" class="hidden-view h-full overflow-y-auto p-12">
+            <h2 class="text-4xl font-black text-red-500 mb-10 tracking-tighter">Trash Bin</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {% for s in trash %}
+                <div class="snippet-card bg-[#0b0f1a] border border-red-900/20 rounded-[2.5rem] p-8 glass">
+                    <h3 class="text-white font-bold mb-4 text-xl truncate">{{ s.title }}</h3>
+                    <div class="flex gap-3">
+                        <form action="/restore/{{s.id}}" method="POST" class="flex-1">
+                            <button type="submit" class="w-full py-4 bg-emerald-600/10 text-emerald-500 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase hover:bg-emerald-600 hover:text-white transition-all shadow-lg">Restore</button>
+                        </form>
+                        <form action="/permanent_delete/{{s.id}}" method="POST" class="flex-1" onsubmit="return confirm('PERMANENT PURGE: Lost forever. Proceed?')">
+                            <button type="submit" class="w-full py-4 bg-red-600/10 text-red-500 border border-red-500/20 rounded-xl text-[10px] font-black uppercase hover:bg-red-600 hover:text-white transition-all shadow-lg">Delete</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+
+    <script>
+        let activeSnippetId = "{{ snippets[0].id if snippets else 0 }}";
+
+        // --- ROBOT SYSTEM ---
+        function initRobots() {
+            const layer = document.createElement('div'); layer.id = 'robot-layer'; document.body.prepend(layer);
+            const drones = [];
+            for (let i = 0; i < 3; i++) {
+                const drone = document.createElement('div'); drone.className = 'bot-drone'; layer.appendChild(drone);
+                drones.push({ el: drone, x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, targetX: 0, targetY: 0, speed: 0.05 + (Math.random() * 0.05) });
+            }
+            document.addEventListener('mousemove', (e) => { drones.forEach(d => { d.targetX = e.clientX; d.targetY = e.clientY; }); });
+            function animate() {
+                drones.forEach((d, i) => {
+                    d.x += (d.targetX - d.x) * d.speed; d.y += (d.targetY - d.y) * d.speed;
+                    const wX = Math.sin(Date.now() / 500 + i) * 20; const wY = Math.cos(Date.now() / 500 + i) * 20;
+                    d.el.style.transform = `translate(${d.x + wX - 22}px, ${d.y + wY - 22}px)`;
+                });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function show(v) {
+            ['view-editor', 'view-library', 'view-trash'].forEach(id => document.getElementById(id).classList.add('hidden-view'));
+            document.getElementById('view-' + v).classList.remove('hidden-view');
+            document.getElementById('nav-editor').classList.toggle('bg-blue-600', v === 'editor');
+            document.getElementById('nav-library').classList.toggle('bg-blue-600', v === 'library');
+            document.getElementById('nav-trash').classList.toggle('bg-blue-600', v === 'trash');
+        }
+
+        function syncUpdate() {
+            const codeContent = document.getElementById('editCode').value;
+            const targetPreview = document.getElementById('preview-' + activeSnippetId);
+            if (targetPreview) targetPreview.innerText = codeContent;
+            document.getElementById('stat-counter').innerText = `Chars: ${codeContent.length} | Lines: ${codeContent.split('\n').length}`;
+            
+            // Robot Scan Effect
+            document.querySelectorAll('.bot-drone').forEach(d => { d.style.borderColor = '#f59e0b'; d.style.boxShadow = '0 0 40px #f59e0b'; });
+            clearTimeout(window.typeTimer);
+            window.typeTimer = setTimeout(() => {
+                document.querySelectorAll('.bot-drone').forEach(d => { d.style.borderColor = '#2563eb'; d.style.boxShadow = '0 0 25px rgba(37, 99, 235, 0.4)'; });
+            }, 500);
+        }
+
+        function searchLibrary() {
+            let input = document.getElementById('libSearch').value.toLowerCase();
+            let cards = document.getElementsByClassName('snippet-card');
+            for (let i = 0; i < cards.length; i++) cards[i].style.display = cards[i].innerText.toLowerCase().includes(input) ? "block" : "none";
+        }
+
+        function copySnippet(id) {
+            const text = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                // Robot Pulse Effect
+                document.querySelectorAll('.bot-drone').forEach(d => {
+                    const p = document.createElement('div'); p.className = 'scan-pulse'; p.style.cssText = "position:absolute; top:50%; left:50%; width:10px; height:10px; border:2px solid #10b981; border-radius:50%; pointer-events:none;";
+                    d.appendChild(p); setTimeout(() => p.remove(), 1000);
+                    d.style.borderColor = '#10b981'; setTimeout(() => d.style.borderColor = '#2563eb', 1000);
+                });
+                // Custom Toast
+                const container = document.getElementById('toast-container');
+                const t = document.createElement('div'); t.className = "toast show flex items-center gap-3 px-6 py-4 glass rounded-2xl shadow-2xl border-l-4 border-emerald-500 pointer-events-auto mt-4";
+                t.innerHTML = `<span class="text-xs font-black uppercase text-white">Target Captured & Copied</span>`;
+                container.appendChild(t); setTimeout(() => t.remove(), 2500);
+            });
+        }
+
+        function loadEditor(id, title, tags, code) { activeSnippetId = id; show('editor'); document.getElementById('editorForm').action = "/update/" + id; document.getElementById('editTitle').value = title; document.getElementById('editTags').value = tags; document.getElementById('editCode').value = code; syncUpdate(); }
+
+        function takeSnapshot() { html2canvas(document.getElementById('capture-area')).then(canvas => { const link = document.createElement('a'); link.download = document.getElementById('editTitle').value + '.png'; link.href = canvas.toDataURL(); link.click(); }); }
+
+        window.onload = () => { initRobots(); syncUpdate(); setTimeout(() => { document.querySelectorAll('.toast').forEach(t => t.classList.remove('show')); }, 4000); };
+    </script>
+</body>
+</html>
