@@ -21,7 +21,7 @@ To run this project locally, follow these steps:
 
 1. **Clone the repository**:
    ```bash
-   git clone [https://github.com/YOUR_USERNAME/PRIPSH-INTERNSHIP.git](https://github.com/YOUR_USERNAME/SassySnippet-PRIPSH-INTERNSHIP.git)
+   git clone [https://github.com/EKANSH-GAUTAM/PRIPSH-INTERNSHIP.git](https://github.com/EKANSH-GAUTAM/SassySnippet-PRIPSH-INTERNSHIP.git)
    cd PRIPSH-INTERNSHIP
 
 2. **Install dependencies**:
@@ -39,3 +39,4 @@ Bash
 (3.) Verify Connection: The terminal should display * Running on http://127.0.0.1:5000.
 
 (4.) Access the App: Open your web browser and enter http://127.0.0.1:5000 in the address bar.
+
